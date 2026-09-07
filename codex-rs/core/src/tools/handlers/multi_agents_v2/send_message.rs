@@ -1,3 +1,4 @@
+use super::analytics::ToolCallAnalytics;
 use super::message_tool::MessageDeliveryMode;
 use super::message_tool::SendMessageArgs;
 use super::message_tool::handle_message_string_tool;
@@ -18,8 +19,16 @@ impl ToolExecutor<ToolInvocation> for Handler {
         create_send_message_tool()
     }
 
-    fn handle(&self, invocation: ToolInvocation) -> codex_tools::ToolExecutorFuture<'_> {
-        Box::pin(self.handle_call(invocation))
+    fn handle<'a>(&'a self, invocation: ToolInvocation) -> codex_tools::ToolExecutorFuture<'a>
+    where
+        ToolInvocation: 'a,
+    {
+        Box::pin(async move {
+            let mut analytics = ToolCallAnalytics::new(&invocation, CollabAgentTool::SendMessage);
+            let result = self.handle_call(invocation, &mut analytics).await;
+            analytics.finish(&result);
+            result
+        })
     }
 }
 
@@ -27,6 +36,7 @@ impl Handler {
     async fn handle_call(
         &self,
         invocation: ToolInvocation,
+        analytics: &mut ToolCallAnalytics,
     ) -> Result<Box<dyn crate::tools::context::ToolOutput>, FunctionCallError> {
         let arguments = function_arguments(invocation.payload.clone())?;
         let args: SendMessageArgs = parse_arguments(&arguments)?;
@@ -35,6 +45,7 @@ impl Handler {
             MessageDeliveryMode::QueueOnly,
             args.target,
             args.message,
+            analytics,
         )
         .await
         .map(boxed_tool_output)
@@ -56,8 +67,16 @@ impl ToolExecutor<ToolInvocation> for PlainTextHandler {
         create_plain_text_send_message_tool()
     }
 
-    fn handle(&self, invocation: ToolInvocation) -> codex_tools::ToolExecutorFuture<'_> {
-        Box::pin(self.handle_call(invocation))
+    fn handle<'a>(&'a self, invocation: ToolInvocation) -> codex_tools::ToolExecutorFuture<'a>
+    where
+        ToolInvocation: 'a,
+    {
+        Box::pin(async move {
+            let mut analytics = ToolCallAnalytics::new(&invocation, CollabAgentTool::SendMessage);
+            let result = self.handle_call(invocation, &mut analytics).await;
+            analytics.finish(&result);
+            result
+        })
     }
 }
 
@@ -65,6 +84,7 @@ impl PlainTextHandler {
     async fn handle_call(
         &self,
         invocation: ToolInvocation,
+        analytics: &mut ToolCallAnalytics,
     ) -> Result<Box<dyn crate::tools::context::ToolOutput>, FunctionCallError> {
         let arguments = function_arguments(invocation.payload.clone())?;
         let args: SendMessageArgs = parse_arguments(&arguments)?;
@@ -73,6 +93,7 @@ impl PlainTextHandler {
             MessageDeliveryMode::QueueOnly,
             args.target,
             args.message,
+            analytics,
         )
         .await
         .map(boxed_tool_output)

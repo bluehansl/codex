@@ -12,6 +12,8 @@ pub enum UpdateAction {
     NpmGlobalLatest,
     /// Update via `bun install -g @bluehansl/claudex@latest`.
     BunGlobalLatest,
+    /// Update via `vp install -g @bluehansl/claudex@latest`.
+    VitePlusGlobalLatest,
     /// Update via `pnpm add -g @bluehansl/claudex@latest`.
     PnpmGlobalLatest,
     /// Update via `brew upgrade codex`.
@@ -28,6 +30,7 @@ impl UpdateAction {
         match &context.method {
             InstallMethod::Npm => Some(UpdateAction::NpmGlobalLatest),
             InstallMethod::Bun => Some(UpdateAction::BunGlobalLatest),
+            InstallMethod::VitePlus => Some(UpdateAction::VitePlusGlobalLatest),
             InstallMethod::Pnpm => Some(UpdateAction::PnpmGlobalLatest),
             InstallMethod::Brew | InstallMethod::Standalone { .. } | InstallMethod::Other => None,
         }
@@ -38,6 +41,7 @@ impl UpdateAction {
         match self {
             UpdateAction::NpmGlobalLatest => ("npm", &["install", "-g", "@bluehansl/claudex"]),
             UpdateAction::BunGlobalLatest => ("bun", &["install", "-g", "@bluehansl/claudex"]),
+            UpdateAction::VitePlusGlobalLatest => ("vp", &["install", "-g", "@bluehansl/claudex"]),
             UpdateAction::PnpmGlobalLatest => ("pnpm", &["add", "-g", "@bluehansl/claudex"]),
             UpdateAction::BrewUpgrade => ("brew", &["upgrade", "--cask", "codex"]),
             UpdateAction::StandaloneUnix => (
@@ -178,6 +182,14 @@ mod tests {
         assert_eq!(
             UpdateAction::BunGlobalLatest.command_args(),
             ("bun", &["install", "-g", "@bluehansl/claudex"][..],)
+        );
+        assert_eq!(
+            UpdateAction::VitePlusGlobalLatest.command_args(),
+            ("vp", &["install", "-g", "@bluehansl/claudex"][..],)
+        );
+        assert_eq!(
+            UpdateAction::PnpmGlobalLatest.command_args(),
+            ("pnpm", &["add", "-g", "@bluehansl/claudex"][..],)
         );
     }
 }

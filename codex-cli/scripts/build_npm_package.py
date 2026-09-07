@@ -58,9 +58,7 @@ CODEX_PLATFORM_PACKAGES: dict[str, dict[str, str]] = {
     },
 }
 
-CORE_PLATFORM_PACKAGES: tuple[str, ...] = (
-    "claudex-darwin-arm64",
-)
+CORE_PLATFORM_PACKAGES: tuple[str, ...] = ("claudex-darwin-arm64",)
 
 PACKAGE_EXPANSIONS: dict[str, list[str]] = {
     "claudex": ["claudex", *CORE_PLATFORM_PACKAGES],
@@ -84,8 +82,11 @@ PACKAGE_TARGET_FILTERS: dict[str, str] = {
 
 PACKAGE_CHOICES = tuple(PACKAGE_NATIVE_COMPONENTS)
 
+
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Build or stage the Claudex CLI npm package.")
+    parser = argparse.ArgumentParser(
+        description="Build or stage the Claudex CLI npm package."
+    )
     parser.add_argument(
         "--package",
         choices=PACKAGE_CHOICES,
@@ -98,9 +99,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--release-version",
-        help=(
-            "Version to stage for npm release."
-        ),
+        help=("Version to stage for npm release."),
     )
     parser.add_argument(
         "--staging-dir",
@@ -146,7 +145,9 @@ def main() -> int:
     release_version = args.release_version
     if release_version:
         if version and version != release_version:
-            raise RuntimeError("--version and --release-version must match when both are provided.")
+            raise RuntimeError(
+                "--version and --release-version must match when both are provided."
+            )
         version = release_version
 
     if not version:
@@ -251,7 +252,9 @@ def resolve_root_platform_packages(root_platforms: str) -> tuple[str, ...]:
         package_name = by_token.get(token)
         if package_name is None:
             valid = ", ".join(["all", "core", *by_token])
-            raise RuntimeError(f"Unknown root platform '{token}'. Valid values: {valid}")
+            raise RuntimeError(
+                f"Unknown root platform '{token}'. Valid values: {valid}"
+            )
         if package_name not in selected:
             selected.append(package_name)
 
@@ -315,7 +318,9 @@ def stage_sources(
     elif package == "codex-responses-api-proxy":
         bin_dir = staging_dir / "bin"
         bin_dir.mkdir(parents=True, exist_ok=True)
-        launcher_src = RESPONSES_API_PROXY_NPM_ROOT / "bin" / "codex-responses-api-proxy.js"
+        launcher_src = (
+            RESPONSES_API_PROXY_NPM_ROOT / "bin" / "codex-responses-api-proxy.js"
+        )
         shutil.copy2(launcher_src, bin_dir / "codex-responses-api-proxy.js")
 
         readme_src = RESPONSES_API_PROXY_NPM_ROOT / "README.md"
@@ -447,7 +452,10 @@ def copy_native_binaries(
         missing_targets = sorted(target_filter - copied_targets)
         if missing_targets:
             missing_list = ", ".join(missing_targets)
-            raise RuntimeError(f"Missing target directories in vendor source: {missing_list}")
+            raise RuntimeError(
+                f"Missing target directories in vendor source: {missing_list}"
+            )
+
 
 def run_npm_pack(staging_dir: Path, output_path: Path) -> Path:
     output_path = output_path.resolve()

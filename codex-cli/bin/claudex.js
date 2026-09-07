@@ -2,7 +2,7 @@
 // Unified entry point for the Claudex CLI.
 
 import { spawn } from "node:child_process";
-import { existsSync, realpathSync } from "fs";
+import { existsSync, readFileSync, realpathSync } from "fs";
 import { createRequire } from "node:module";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -124,7 +124,9 @@ if (!nativePackage) {
       ? "bun install -g @bluehansl/claudex@latest"
       : packageManager === "pnpm"
         ? "pnpm add -g @bluehansl/claudex@latest"
-      : "npm install -g @bluehansl/claudex@latest";
+        : packageManager === "vite-plus"
+          ? "vp install -g @bluehansl/claudex@latest"
+          : "npm install -g @bluehansl/claudex@latest";
   throw new Error(
     `Missing optional dependency ${platformPackage}. Reinstall Claudex: ${updateCommand}`,
   );
@@ -163,14 +165,55 @@ function isPnpmOwnedCodexInstall(nodeModulesDir) {
   }
 }
 
+function isVitePlusOwnedClaudexInstall(packagesDir) {
+  if (path.basename(packagesDir) !== "packages") {
+    return false;
+  }
+
+  try {
+    const metadata = JSON.parse(
+      readFileSync(
+        path.join(packagesDir, "@bluehansl", "claudex.json"),
+        "utf8",
+      ),
+    );
+    if (metadata.name !== "@bluehansl/claudex") {
+      return false;
+    }
+
+    // Vite+ records the active global installation in packages/@bluehansl/claudex.json.
+    // Older installs have no ID or append a #-prefixed ID to the package name;
+    // newer installs put the ID in a subdirectory of the package prefix.
+    const installId = metadata.installId || "";
+    const installDir = installId.startsWith("#")
+      ? path.join(packagesDir, `@bluehansl/claudex${installId}`)
+      : path.join(packagesDir, "@bluehansl/claudex", installId);
+    for (const nodeModulesDir of [
+      path.join(installDir, "lib", "node_modules"),
+      path.join(installDir, "node_modules"),
+    ]) {
+      const packageRoot = path.join(nodeModulesDir, "@bluehansl", "claudex");
+      if (
+        existsSync(packageRoot) &&
+        realpathSync(packageRoot) === codexPackageRoot
+      ) {
+        return true;
+      }
+    }
+  } catch {
+    // Missing or unreadable ownership metadata must not prevent Codex starting.
+  }
+  return false;
+}
+
 /**
  * Use heuristics to detect the package manager that was used to install Claudex
  * in order to give the user a hint about how to update it.
  */
 function detectPackageManager() {
-  // pnpm's owning node_modules directory can be several parents above the
-  // package in isolated global layouts. Search ancestors of both the canonical
-  // package root and lexical entrypoint because pnpm may link either path.
+  // Package-manager ownership metadata can be several parents above the package.
+  // Search ancestors of both the canonical package root and lexical entrypoint
+  // because the package manager may link either path.
   const entrypointDir = path.dirname(path.resolve(process.argv[1]));
   for (const startDir of new Set([codexPackageRoot, entrypointDir])) {
     const filesystemRoot = path.parse(startDir).root;
@@ -179,6 +222,9 @@ function detectPackageManager() {
       currentDir !== filesystemRoot;
       currentDir = path.dirname(currentDir)
     ) {
+      if (isVitePlusOwnedClaudexInstall(currentDir)) {
+        return "vite-plus";
+      }
       if (isPnpmOwnedCodexInstall(path.join(currentDir, "node_modules"))) {
         return "pnpm";
       }
@@ -215,7 +261,9 @@ const packageManagerEnvVar =
     ? "CODEX_MANAGED_BY_BUN"
     : packageManager === "pnpm"
       ? "CODEX_MANAGED_BY_PNPM"
-      : "CODEX_MANAGED_BY_NPM";
+      : packageManager === "vite-plus"
+        ? "CODEX_MANAGED_BY_VITE_PLUS"
+        : "CODEX_MANAGED_BY_NPM";
 const additionalDirs = [];
 if (existsSync(pathDir)) {
   additionalDirs.push(pathDir);
@@ -229,6 +277,7 @@ const env = {
 delete env.CODEX_MANAGED_BY_NPM;
 delete env.CODEX_MANAGED_BY_BUN;
 delete env.CODEX_MANAGED_BY_PNPM;
+delete env.CODEX_MANAGED_BY_VITE_PLUS;
 env[packageManagerEnvVar] = "1";
 
 const child = spawn(binaryPath, process.argv.slice(2), {

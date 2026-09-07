@@ -69,6 +69,7 @@ async fn check_for_update(
     match action {
         Some(UpdateAction::NpmGlobalLatest)
         | Some(UpdateAction::BunGlobalLatest)
+        | Some(UpdateAction::VitePlusGlobalLatest)
         | Some(UpdateAction::PnpmGlobalLatest) => {
             npm_registry::ensure_version_ready(&package_info, &latest_version)?;
         }
